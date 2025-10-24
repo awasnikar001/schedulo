@@ -9,4 +9,4 @@ cd packages/prisma && npx prisma migrate deploy --schema ./schema.prisma
 cd ../..
 
 echo "Starting web and API servers..."
-concurrently "yarn --cwd apps/web start" "yarn --cwd apps/api/v2 start"
+concurrently "yarn --cwd apps/web start" "yarn --cwd apps/api/v2 start:prod"
