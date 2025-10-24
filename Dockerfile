@@ -1,6 +1,5 @@
 # ---- build stage ----
 FROM node:20-bullseye AS builder
-ENV CI=true
 WORKDIR /app
 
 # Use the packageManager declared in package.json (yarn)
@@ -23,28 +22,33 @@ ENV CALENDSO_ENCRYPTION_KEY=${CALENDSO_ENCRYPTION_KEY}
 ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXTAUTH_URL="${BUILT_NEXT_PUBLIC_WEBAPP_URL}/api/auth"
 
+# For development/testing: bypass license checks
+ENV IS_E2E="true"
+ENV CALCOM_LICENSE_KEY="00000000-0000-0000-0000-000000000000"
+
 # Copy repo (includes .yarn directory for Yarn Berry)
 COPY . .
 
-# Install deps (allow lockfile updates in Docker) with timeout extension
-RUN yarn install --network-timeout 300000
+# Install deps with inline builds (allow lockfile updates for TypeScript resolution)
+RUN yarn install --inline-builds --network-timeout 300000
 
-# Prisma client + enum artifacts (already handled by post-install hooks)
-# RUN cd packages/prisma && npx prisma generate
+# Now enable CI mode to prevent further lockfile modifications
+ENV CI=true
+
+# Generate Prisma Client (essential for both apps)
+RUN yarn workspace @calcom/prisma prisma generate
 
 # Give Node more heap for large turborepo builds
-ENV NODE_OPTIONS="--max-old-space-size=6144"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV TURBO_TELEMETRY_DISABLED="1"
 ENV NEXT_TELEMETRY_DISABLED="1"
 
 # Skip Sentry release in Docker builds (unless SENTRY_AUTH_TOKEN is provided)
 ENV SENTRY_AUTH_TOKEN=""
 
-# Build the entire monorepo in dependency order
-RUN yarn build
-
-# Build API v2 for production
-RUN yarn --cwd apps/api/v2 build
+# Build both apps with their dependencies in one pass
+# The ... suffix includes dependencies, and --concurrency=1 prevents OOM
+RUN yarn turbo run build --filter=@calcom/web... --filter=@calcom/api-v2... --concurrency=1
 
 # ---- run stage ----
 FROM node:20-bullseye-slim AS runner
@@ -60,7 +64,8 @@ COPY --from=builder /app/package.json /app/yarn.lock /app/.yarnrc.yml /app/i18n.
 COPY --from=builder /app/.yarn ./.yarn
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps ./apps
+COPY --from=builder /app/apps/web ./apps/web
+COPY --from=builder /app/apps/api/v2 ./apps/api/v2
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/turbo.json ./turbo.json
 
