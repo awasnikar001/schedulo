@@ -61,7 +61,6 @@ COPY --from=builder /app/.yarn ./.yarn
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps ./apps
-COPY --from=builder /app/apps/api/v2/dist ./apps/api/v2/dist
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/turbo.json ./turbo.json
 
