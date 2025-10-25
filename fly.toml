@@ -5,19 +5,41 @@ primary_region = "fra"
   dockerfile = "Dockerfile"
 
 [build.args]
-  BUILT_NEXT_PUBLIC_WEBAPP_URL = "https://schedulo-web.fly.dev"
+  NEXT_PUBLIC_WEBAPP_URL = "https://schedulo-web.fly.dev"
+  NEXT_PUBLIC_LICENSE_CONSENT = "agree"
+  CALCOM_TELEMETRY_DISABLED = "1"
+  MAX_OLD_SPACE_SIZE = "4096"
 
 [env]
-  API_PORT = "5555"
+  # Application settings
   PORT = "3000"
-  IS_E2E = "true"
+  API_PORT = "5555"
+  NODE_ENV = "production"
+  
+  # Cal.com settings
+  NEXT_PUBLIC_WEBAPP_URL = "https://schedulo-web.fly.dev"
+  NEXT_PUBLIC_LICENSE_CONSENT = "agree"
+  CALCOM_TELEMETRY_DISABLED = "1"
+  NEXT_TELEMETRY_DISABLED = "1"
+  
+  # Privacy & Terms URLs
+  NEXT_PUBLIC_WEBSITE_TERMS_URL = "https://schedulo-web.fly.dev/terms"
+  NEXT_PUBLIC_WEBSITE_PRIVACY_POLICY_URL = "https://schedulo-web.fly.dev/privacy"
 
 [http_service]
   internal_port = 3000
   force_https = true
   auto_start_machines = true
-  auto_stop_machines = false   # keep the app up
-  min_machines_running = 1     # ensure at least one machine stays running
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  # Health check route
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/health"
 
 [[vm]]
   cpu_kind = "shared"

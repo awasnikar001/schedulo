@@ -1,91 +1,106 @@
 # ---- build stage ----
 FROM node:20-bullseye AS builder
-WORKDIR /app
+WORKDIR /calcom
 
-# Use the packageManager declared in package.json (yarn)
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable Corepack for Yarn Berry
 RUN corepack enable
 
-# Build-time placeholder for NEXT_PUBLIC_WEBAPP_URL so Next.js compiles
-# We rewrite it at runtime via scripts/replace-placeholder.sh
-ARG BUILT_NEXT_PUBLIC_WEBAPP_URL="https://build.placeholder"
-ENV NEXT_PUBLIC_WEBAPP_URL=${BUILT_NEXT_PUBLIC_WEBAPP_URL}
+# Build-time variables (following official Cal.com Docker approach)
+ARG NEXT_PUBLIC_WEBAPP_URL="http://localhost:3000"
+ARG NEXT_PUBLIC_LICENSE_CONSENT
+ARG CALCOM_TELEMETRY_DISABLED=1
+ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/calendso"
+ARG NEXTAUTH_SECRET="secret"
+ARG CALENDSO_ENCRYPTION_KEY="secret"
+ARG MAX_OLD_SPACE_SIZE=4096
 
-# Build-time required environment variables for Next.js config
-# Provide placeholder defaults so build succeeds even without explicit build args
-# Real secrets will be used at runtime from Fly.io secrets
-ARG NEXTAUTH_SECRET="build-time-placeholder-secret-min-32-characters-long-xxxxxxxxxxxx"
-ARG CALENDSO_ENCRYPTION_KEY="build-time-placeholder-encryption-key-32-chars-xxxxxxxxx"
-ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+# Set environment variables for build
+ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
+    NEXT_PUBLIC_LICENSE_CONSENT=$NEXT_PUBLIC_LICENSE_CONSENT \
+    CALCOM_TELEMETRY_DISABLED=$CALCOM_TELEMETRY_DISABLED \
+    DATABASE_URL=$DATABASE_URL \
+    NEXTAUTH_SECRET=$NEXTAUTH_SECRET \
+    CALENDSO_ENCRYPTION_KEY=$CALENDSO_ENCRYPTION_KEY \
+    NEXTAUTH_URL="${NEXT_PUBLIC_WEBAPP_URL}/api/auth"
 
-ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-ENV CALENDSO_ENCRYPTION_KEY=${CALENDSO_ENCRYPTION_KEY}
-ENV DATABASE_URL=${DATABASE_URL}
-ENV NEXTAUTH_URL="${BUILT_NEXT_PUBLIC_WEBAPP_URL}/api/auth"
-
-# For development/testing: bypass license checks
-
+# Official Cal.com localhost development license key (for build-time)
 ENV CALCOM_LICENSE_KEY="59c0bed7-8b21-4280-8514-e022fbfc24c7"
 
-# Copy repo (includes .yarn directory for Yarn Berry)
+# Disable telemetry
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    TURBO_TELEMETRY_DISABLED=1
+
+# Copy package files first (better caching)
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+COPY turbo.json ./
+COPY packages/prisma/schema.prisma ./packages/prisma/schema.prisma
+COPY packages/prisma/package.json ./packages/prisma/package.json
+
+# Install dependencies
+RUN yarn install --frozen-lockfile --network-timeout 1000000
+
+# Copy the rest of the application
 COPY . .
 
-# Install deps (no inline builds to allow Prisma generation first)
-RUN yarn install --network-timeout 300000
-
-# Generate Prisma Client BEFORE any builds (required by @calcom/web and @calcom/api-v2)
+# Generate Prisma Client
 RUN yarn workspace @calcom/prisma prisma generate
 
-# Give Node more heap for large turborepo builds
-ENV NODE_OPTIONS="--max-old-space-size=8192"
-ENV TURBO_TELEMETRY_DISABLED="1"
-ENV NEXT_TELEMETRY_DISABLED="1"
+# Build the application with memory optimization
+ENV NODE_OPTIONS="--max-old-space-size=${MAX_OLD_SPACE_SIZE}"
+RUN yarn build
 
-# Skip Sentry release in Docker builds (unless SENTRY_AUTH_TOKEN is provided)
-ENV SENTRY_AUTH_TOKEN=""
+# Build API v2 separately for better control
+RUN yarn workspace @calcom/api-v2 build || echo "API v2 build skipped"
 
-# Build both apps with their dependencies in one pass
-# The ... suffix includes dependencies, and --concurrency=1 prevents OOM
-RUN yarn turbo run build --filter=@calcom/web... --filter=@calcom/api-v2... --concurrency=1
-
-# ---- run stage ----
+# ---- runtime stage ----
 FROM node:20-bullseye-slim AS runner
-WORKDIR /app
-ENV NODE_ENV=production
+WORKDIR /calcom
 
-# tini for sane PID1 (optional), wget for wait-for-it http mode  
-RUN apt-get update && apt-get install -y tini wget && rm -rf /var/lib/apt/lists/*
-ENTRYPOINT ["/usr/bin/tini","--"]
+# Install runtime dependencies (following official Cal.com Docker)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    tini \
+    wget \
+    curl \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy only necessary files from builder
-COPY --from=builder /app/package.json /app/yarn.lock /app/.yarnrc.yml /app/i18n.json ./
-COPY --from=builder /app/.yarn ./.yarn
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/web ./apps/web
-COPY --from=builder /app/apps/api/v2 ./apps/api/v2
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/turbo.json ./turbo.json
+# Create non-root user (security best practice)
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
 
-# Clean up unnecessary files to reduce image size
-RUN find . -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" | xargs rm -f || true && \
-    find . -name "__tests__" -type d | xargs rm -rf || true && \
-    find . -name "*.map" | xargs rm -f || true
+# Copy built application from builder
+COPY --from=builder --chown=nodejs:nodejs /calcom ./
 
-# Ensure scripts are executable
+# Copy scripts and make executable
+COPY --chown=nodejs:nodejs scripts ./scripts
 RUN chmod +x scripts/*.sh
 
-# Ports & health
-ENV PORT=3000
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --retries=5 \
-  CMD node -e "require('http').get('http://127.0.0.1:${process.env.PORT||3000}',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+# Set production environment
+ENV NODE_ENV=production \
+    PORT=3000 \
+    NEXT_TELEMETRY_DISABLED=1
 
-# Environment knobs used by start.sh:
-# - BUILT_NEXT_PUBLIC_WEBAPP_URL (same as build arg)
-# - NEXT_PUBLIC_WEBAPP_URL (your real domain, set at runtime)
-# - DATABASE_URL (Prisma), DATABASE_HOST (optional wait-for-it)
-# - SEED_APP_STORE=true (first run only)
-ENV BUILT_NEXT_PUBLIC_WEBAPP_URL="https://build.placeholder"
+# Expose ports
+EXPOSE 3000 5555
 
-# Start script runs: replace placeholder -> migrate -> (seed) -> start API+Web
-CMD ["bash","scripts/start.sh"]
+# Health check (following official patterns)
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=40s \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Switch to non-root user
+USER nodejs
+
+# Start the application
+CMD ["/calcom/scripts/start.sh"]

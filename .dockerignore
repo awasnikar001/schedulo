@@ -1,73 +1,115 @@
-# Dependencies (will be installed inside Docker)
+# Following official Cal.com Docker .dockerignore patterns
+# https://github.com/calcom/docker/blob/main/.dockerignore
+
+# Git
+.git
+.github
+.gitignore
+.gitmodules
+.gitattributes
+
+# Dependencies
 node_modules
+**/node_modules
 .pnp
 .pnp.js
-
-# Build outputs (will be built inside Docker)
-.next
-out
-build
-dist
-.turbo
-.cache
 
 # Testing
 coverage
 .nyc_output
-*.test.ts
-*.test.tsx
-*.spec.ts
-*.spec.tsx
 **/__tests__
-**/__mocks__
-test
-tests
+**/test
+**/*.test.ts
+**/*.test.tsx
+**/*.test.js
+**/*.test.jsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.spec.js
+**/*.spec.jsx
+playwright
+playwright-report
+test-results
 
-# Development files
-.git
-.gitignore
-.github
-.vscode
-.idea
+# Next.js
+.next
+out
+**/.next
+**/out
+*.tsbuildinfo
+
+# Production builds
+build
+dist
+**/dist
+
+# Misc
+.DS_Store
+*.pem
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env
 .env.local
-.env.*.local
-.DS_Store
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+
+# Vercel
+.vercel
+
+# Typescript
+*.tsbuildinfo
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.cursor
 
 # Documentation
 *.md
 !README.md
 docs
-
-# Playwright
-playwright-report
-test-results
-.playwright
-
-# CI/CD (not needed in Docker)
-.husky
-.commitlintrc*
+documentation
 
 # Storybook
-storybook-static
+.storybook
+**/stories
+
+# Turbo
+.turbo
 
 # Sentry
 .sentryclirc
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Playwright
+playwright/.cache
+
+# OS
+Thumbs.DS
+Desktop.ini
 
 # Fly.io
 fly.toml
 .fly
 
-# Docker itself
-Dockerfile
+# Docker
+Dockerfile*
+docker-compose*.yml
 .dockerignore
-
-# Temp files
-*.tmp
-*.temp
-.tmp
-.temp
-
