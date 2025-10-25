@@ -41,7 +41,7 @@ COPY .yarn ./.yarn
 
 COPY apps ./apps
 COPY packages ./packages
-COPY tests ./tests
+
 
 # You told me you have both api/v1 and api/v2, so:
 COPY apps/api/v1 ./apps/api/v1
