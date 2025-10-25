@@ -29,11 +29,8 @@ ENV CALCOM_LICENSE_KEY="00000000-0000-0000-0000-000000000000"
 # Copy repo (includes .yarn directory for Yarn Berry)
 COPY . .
 
-# Install deps with inline builds (allow lockfile updates for TypeScript resolution)
+# Install deps with inline builds (better for monorepo)
 RUN yarn install --inline-builds --network-timeout 300000
-
-# Now enable CI mode to prevent further lockfile modifications
-ENV CI=true
 
 # Generate Prisma Client (essential for both apps)
 RUN yarn workspace @calcom/prisma prisma generate
