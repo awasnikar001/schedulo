@@ -33,5 +33,5 @@
     "../../packages/features/bookings/lib/getUserBooking.ts",
     "../../packages/features/Segment.tsx"
   ],
-  "exclude": ["**/node_modules/**", ".next", "playwright/**"]
+  "exclude": ["**/node_modules/**", ".next", "playwright/**", "../../playwright/**", "../../tests/**"]
 }
