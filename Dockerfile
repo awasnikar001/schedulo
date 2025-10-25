@@ -23,16 +23,16 @@ ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXTAUTH_URL="${BUILT_NEXT_PUBLIC_WEBAPP_URL}/api/auth"
 
 # For development/testing: bypass license checks
-ENV IS_E2E="true"
-ENV CALCOM_LICENSE_KEY="00000000-0000-0000-0000-000000000000"
+
+ENV CALCOM_LICENSE_KEY="59c0bed7-8b21-4280-8514-e022fbfc24c7"
 
 # Copy repo (includes .yarn directory for Yarn Berry)
 COPY . .
 
-# Install deps with inline builds (better for monorepo)
-RUN yarn install --inline-builds --network-timeout 300000
+# Install deps (no inline builds to allow Prisma generation first)
+RUN yarn install --network-timeout 300000
 
-# Generate Prisma Client (essential for both apps)
+# Generate Prisma Client BEFORE any builds (required by @calcom/web and @calcom/api-v2)
 RUN yarn workspace @calcom/prisma prisma generate
 
 # Give Node more heap for large turborepo builds
