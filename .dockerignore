@@ -1,26 +1,54 @@
-# ==========================================
-# Minimal .dockerignore for "Fat Container"
-# ==========================================
-# Philosophy: Copy most things (node_modules, .yarn cache, builds)
-# Only exclude: Git, logs, local env files
-# ==========================================
+# Following official Cal.com Docker .dockerignore patterns
+# https://github.com/calcom/docker/blob/main/.dockerignore
 
-# Git (never needed in container)
+# Git
 .git
 .github
 .gitignore
 .gitmodules
 .gitattributes
 
-# Local environment files (use Railway env vars instead)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
+# Dependencies
+node_modules
+**/node_modules
+.pnp
+.pnp.js
 
-# Logs (don't copy old logs)
+# Testing
+coverage
+.nyc_output
+**/__tests__
+**/test
+**/*.test.ts
+**/*.test.tsx
+**/*.test.js
+**/*.test.jsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.spec.js
+**/*.spec.jsx
+**/playwright
+playwright.config.ts
+playwright-report
+test-results
+**/tests
+tests
+
+# Next.js
+.next
+out
+**/.next
+**/out
+*.tsbuildinfo
+
+# Production builds
+build
+dist
+**/dist
+
+# Misc
+.DS_Store
+*.pem
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -28,12 +56,22 @@ yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
 
-# OS files
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
 
-# IDE files
+# Vercel
+.vercel
+
+# Typescript
+*.tsbuildinfo
+
+# IDE
 .vscode
 .idea
 *.swp
@@ -41,38 +79,40 @@ Desktop.ini
 *~
 .cursor
 
-# Documentation (save space)
+# Documentation
 *.md
 !README.md
 docs
+documentation
 
-# Test results (not needed in production)
-coverage
-.nyc_output
-playwright-report
-test-results
+# Storybook
+.storybook
+**/stories
 
-# Docker itself
-Dockerfile*
-docker-compose*.yml
-.dockerignore
-
-# Platform-specific
-.vercel
+# Turbo
 .turbo
+
+# Sentry
+.sentryclirc
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Playwright
+playwright/.cache
+
+# OS
+Thumbs.DS
+Desktop.ini
+
+# Fly.io
 fly.toml
 .fly
 
-# Build artifacts that will be regenerated (but keep .next itself!)
-.next/cache
-# Note: apps/web/.next/ is INCLUDED so Docker can use existing build
-
-# ==================================================
-# KEEP THESE (don't add to .dockerignore):
-# ==================================================
-# ✅ node_modules/ - Already installed, reuse them
-# ✅ .yarn/ - Cache makes installs faster
-# ✅ packages/ - Already built, reuse them
-# ✅ apps/web/.next/ - Already built, reuse it
-# ✅ Test files - TypeScript excluded via tsconfig
-# ==================================================
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
