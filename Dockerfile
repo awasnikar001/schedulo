@@ -19,10 +19,18 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Runtime environment variables
+# Build-time args (needed by next.config.js even during build)
+ARG NEXTAUTH_SECRET=build-time-secret-placeholder
+ARG CALENDSO_ENCRYPTION_KEY=build-time-encryption-placeholder
+ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/calendso
+
+# Environment variables for build and runtime
 ENV NODE_ENV=production \
     PORT=3000 \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    NEXTAUTH_SECRET=$NEXTAUTH_SECRET \
+    CALENDSO_ENCRYPTION_KEY=$CALENDSO_ENCRYPTION_KEY \
+    DATABASE_URL=$DATABASE_URL
 
 # Copy EVERYTHING from your local repo as-is
 # This includes:

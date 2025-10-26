@@ -63,8 +63,9 @@ docker-compose*.yml
 fly.toml
 .fly
 
-# Build artifacts that will be regenerated
+# Build artifacts that will be regenerated (but keep .next itself!)
 .next/cache
+# Note: apps/web/.next/ is INCLUDED so Docker can use existing build
 
 # ==================================================
 # KEEP THESE (don't add to .dockerignore):
