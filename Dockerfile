@@ -20,6 +20,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Build-time args (needed by next.config.js even during build)
+ARG NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
 ARG NEXTAUTH_SECRET=build-time-secret-placeholder
 ARG CALENDSO_ENCRYPTION_KEY=build-time-encryption-placeholder
 ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/calendso
@@ -28,6 +29,8 @@ ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/calendso
 ENV NODE_ENV=production \
     PORT=3000 \
     NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
+    NEXTAUTH_URL=$NEXT_PUBLIC_WEBAPP_URL/api/auth \
     NEXTAUTH_SECRET=$NEXTAUTH_SECRET \
     CALENDSO_ENCRYPTION_KEY=$CALENDSO_ENCRYPTION_KEY \
     DATABASE_URL=$DATABASE_URL
